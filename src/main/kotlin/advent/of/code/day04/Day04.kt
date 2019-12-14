@@ -1,5 +1,6 @@
 package advent.of.code.day04
 
+import advent.of.code.digits
 import advent.of.code.replaceLast
 import arrow.core.extensions.list.foldable.fold
 import arrow.core.extensions.monoid
@@ -63,12 +64,3 @@ val rules = listOf(
     neverDecrease,
     sameAreNotInLargerGroup
 )
-
-fun Int.digits(): List<Int> {
-    fun go(value: Int, digits: List<Int>): List<Int> =
-        when {
-            value > 0 -> go(value / 10, listOf(value % 10) + digits)
-            else -> digits
-        }
-    return go(this, emptyList())
-}
