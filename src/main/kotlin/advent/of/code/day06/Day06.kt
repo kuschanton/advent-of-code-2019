@@ -4,9 +4,9 @@ import advent.of.code.day03.toEitherList
 import advent.of.code.readInputFrom
 import arrow.core.Either
 import arrow.core.extensions.fx
-import arrow.core.flatMap
 import arrow.core.left
 import arrow.core.right
+import arrow.core.toOption
 
 val testInput = """
 COM)B
@@ -29,28 +29,61 @@ G)H
 B)C
 C)D
 D)I
+H)SAN
+I)YOU
 """.trimIndent()
 
 fun main() {
     val result = Either.fx<Error, Int> {
-        val (directOrbits) = parseInput(readInputFrom("06.txt"))
+        val (directOrbits) = parseInputPairs(readInputFrom("06_1.txt"))
+        val pathToYou = findPathTo("YOU", directOrbits)
+        val pathToSanta = findPathTo("SAN", directOrbits)
+        val (lastCommon) = pathToYou.zip(pathToSanta)
+            .last { it.first == it.second }
+            .first
+            .toOption().toEither { Error("No common elements") }
+        val youPathToLastCommon = pathToYou.size - pathToYou.indexOf(lastCommon) - 1
+        val santaPathToLastCommon = pathToSanta.size - pathToYou.indexOf(lastCommon) - 1
+        youPathToLastCommon + santaPathToLastCommon
+    }
+    println(result)
+}
+
+fun findPathTo(targetName: String, list: List<Pair<String, String>>): List<String> {
+    tailrec fun go(name: String, path: List<String>, list: List<Pair<String, String>>): List<String> {
+        val next = list.singleOrNull { it.second == name }
+        return when {
+            next == null -> emptyList()
+            next.first == "COM" -> (listOf("COM") + path)
+            else -> go(next.first, listOf(next.first) + path, list)
+        }
+    }
+    return go(targetName, emptyList(), list)
+}
+
+fun part1() {
+    val result = Either.fx<Error, Int> {
+        val (directOrbits) = parseInput(readInputFrom("06_1.txt"))
         val tree = buildObject(directOrbits)
         tree.countInterconnections(1)
     }
     println(result)
 }
 
-fun SpaceObject.countInterconnections(depth: Int): Int =
+fun SpaceTree.countInterconnections(depth: Int): Int =
     when {
         left != null && right != null -> left.countInterconnections(depth + 1) + right.countInterconnections(depth + 1) - depth * (depth - 1) / 2
         left != null || right != null -> (left ?: right)!!.countInterconnections(depth + 1)
         else -> depth * (depth - 1) / 2
     }
 
-fun parseInput(input: String): Either<Error, Map<String, Set<String>>> =
+fun parseInputPairs(input: String): Either<Error, List<Pair<String, String>>> =
     input.lines()
         .map { it.toPair() }
         .toEitherList()
+
+fun parseInput(input: String): Either<Error, Map<String, Set<String>>> =
+    parseInputPairs(input)
         .map {
             it.fold(mutableMapOf<String, Set<String>>()) { acc, next ->
                 acc.apply {
@@ -61,15 +94,15 @@ fun parseInput(input: String): Either<Error, Map<String, Set<String>>> =
             }
         }
 
-fun buildObject(inputMap: Map<String, Set<String>>): SpaceObject {
-    fun go(name: String, map: Map<String, Set<String>>): SpaceObject {
+fun buildObject(inputMap: Map<String, Set<String>>): SpaceTree {
+    fun go(name: String, map: Map<String, Set<String>>): SpaceTree {
         val childrenNames = map[name]
         return when {
-            childrenNames.isNullOrEmpty() -> SpaceObject(name)
-            childrenNames.size == 1 -> SpaceObject(name, go(childrenNames.single(), map))
+            childrenNames.isNullOrEmpty() -> SpaceTree(name)
+            childrenNames.size == 1 -> SpaceTree(name, go(childrenNames.single(), map))
             else -> {
                 val (left, right) = childrenNames.toList()
-                SpaceObject(name, go(left, map), go(right, map))
+                SpaceTree(name, go(left, map), go(right, map))
             }
         }
     }
@@ -84,5 +117,5 @@ fun String.toPair(): Either<Error, Pair<String, String>> {
     }
 }
 
-data class SpaceObject(val name: String, val left: SpaceObject? = null, val right: SpaceObject? = null)
+data class SpaceTree(val name: String, val left: SpaceTree? = null, val right: SpaceTree? = null)
 
