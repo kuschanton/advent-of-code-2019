@@ -2,6 +2,7 @@ package advent.of.code
 
 import arrow.core.left
 import arrow.core.right
+import java.io.File
 
 data class Error(val message: String)
 
@@ -23,4 +24,6 @@ fun Int.digits(): List<Int> {
         }
     return go(this, emptyList())
 }
+
+fun readInputFrom(fileName: String) = File("src/main/resources/task_input/$fileName").readText()
 

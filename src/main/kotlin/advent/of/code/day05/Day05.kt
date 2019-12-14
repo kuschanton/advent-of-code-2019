@@ -15,34 +15,49 @@ fun main() {
 
 fun part1(): Unit {
     listOf(
-        listOf(1002, 4, 3, 4, 33) to listOf(1002, 4, 3, 4, 99)
-//        listOf(2, 4, 4, 5, 99, 0) to listOf(2, 4, 4, 5, 99, 9801),
-//        listOf(1, 1, 1, 4, 99, 5, 6, 0, 99) to listOf(30, 1, 1, 4, 2, 5, 6, 0, 99)
+        listOf(3, 21, 1008, 21, 8, 20, 1005, 20, 22, 107, 8, 21, 20, 1006, 20, 31, 1106, 0, 36, 98, 0, 0, 1002, 21, 125, 20, 4, 20, 1105, 1, 46, 104, 999, 1105, 1, 46, 1101, 1000, 1, 20, 4, 20, 1105, 1, 46, 98, 99)
+                to listOf(1002, 4, 3, 4, 99)
+//        listOf(3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8) to listOf(3, 9, 8, 9, 10, 9, 4, 9, 99, 1, 8),
+//        listOf(3, 9, 7, 9, 10, 9, 4, 9, 99, -1, 8) to listOf(30, 1, 1, 4, 2, 5, 6, 0, 99),
+//        listOf(3, 3, 1107, -1, 8, 3, 4, 3, 99) to listOf(30, 1, 1, 4, 2, 5, 6, 0, 99),
+//        listOf(3, 3, 1105, -1, 9, 1101, 0, 0, 12, 4, 12, 99, 1) to listOf(30, 1, 1, 4, 2, 5, 6, 0, 99)
     ).forEach {
         println("Input: ${it.first}")
         println("Expectation: ${it.second}")
-        println("Result: ${executeOperations(it.first) == it.second.right()}")
+        println("Result: ${executeOperations(it.first)}")
     }
     println(executeOperations(taskInput))
 }
 
 fun executeOperations(input: List<Int>): Either<Error, List<Int>> {
     fun go(index: Int, input: List<Int>): Either<Error, List<Int>> = Either.fx {
-//        println(input)
         val (commandTuple) = input.nextFourFrom(index)
-//        println(commandTuple)
         val (command) = commandTuple.toOperation(index)
-//        println(command)
         when (command) {
             is Halt -> input.right()
-            is ExecutableOperation -> go(index + 4, command.executeOn(input).bind())
-            is ReadInput -> go(index + 2, command.executeOn(input).bind())
-            is WriteOutput -> go(index + 2, command.executeOn(input).bind())
+            is ExecutableOperation -> go(index + command.size, command.executeOn(input).bind())
+            is ReadInput -> go(index + command.size, command.executeOn(input).bind())
+            is WriteOutput -> go(index + command.size, command.executeOn(input).bind())
+            is JumpIfTrue -> go(command.evaluateNewIndex(index, input), input)
+            is JumpIfFalse -> go(command.evaluateNewIndex(index, input), input)
+            is LessThan -> go(index + command.size, command.executeOn(input).bind())
+            is Equals -> go(index + command.size, command.executeOn(input).bind())
         }.bind()
     }
 
     return go(0, input)
 }
+
+fun ComparisonOperation.executeOn(input: List<Int>): Either<Error, List<Int>> =
+    if (max(pos1, pos2, targetPos) < input.size) {
+        val result = if (f(input[pos1], input[pos2])) 1 else 0
+        input.replaceAtIndex(targetPos, result).right()
+    } else
+        Error("Not able to execute $this on input: out of range").left()
+
+fun JumpOperation.evaluateNewIndex(currentIndex: Int, input: List<Int>): Int =
+    if (f(input[pos1])) input[targetPos]
+    else currentIndex + size
 
 fun WriteOutput.executeOn(input: List<Int>): Either<Error, List<Int>> =
     if (targetPos < input.size) {
@@ -68,35 +83,50 @@ fun CommandTuple<Int>.toOperation(index: Int): Either<Error, Operation> {
     val commandDigits = a.toDigitsWithLeadingZeros()
     val (mode2, mode1, opcode2, opcode1) = commandDigits
     return when {
-        opcode1 == 1 && b != null && c != null && d != null -> constructAdd(mode1, b, mode2, c, d, index)
-        opcode1 == 2 && b != null && c != null && d != null -> constructMultiply(mode1, b, mode2, c, d, index)
+        opcode1 == 1 && b != null && c != null && d != null ->
+            constructTwoArgOperation(mode1, b, mode2, c, d, index, ::Add)
+        opcode1 == 2 && b != null && c != null && d != null ->
+            constructTwoArgOperation(mode1, b, mode2, c, d, index, ::Multiply)
         opcode1 == 3 && b != null -> ReadInput(b).right()
         opcode1 == 4 && b != null -> WriteOutput(if (mode1 == 0) b else index + 1).right()
+        opcode1 == 5 && b != null && c != null -> constructJumpOperation(mode1, b, mode2, c, index, ::JumpIfTrue)
+        opcode1 == 6 && b != null && c != null -> constructJumpOperation(mode1, b, mode2, c, index, ::JumpIfFalse)
+        opcode1 == 7 && b != null && c != null && d != null ->
+            constructTwoArgOperation(mode1, b, mode2, c, d, index, ::LessThan)
+        opcode1 == 8 && b != null && c != null && d != null ->
+            constructTwoArgOperation(mode1, b, mode2, c, d, index, ::Equals)
         opcode1 == 9 && opcode2 == 9 -> Halt.right()
         else -> Error("Not able to construct command from $this").left()
     }
 }
 
-// We still gonna use positions for arguments if it's immediate mode, we will use index for this
-fun constructExecutableOperation(
+fun constructJumpOperation(
     mode1: Int,
     arg1: Int,
     mode2: Int,
-    arg2:Int,
+    arg2: Int,
+    index: Int,
+    constructor: (Int, Int) -> JumpOperation
+): Either<Error, JumpOperation> = Either.fx {
+    val (arg1position) = evaluateArgumentPosition(index + 1, mode1, arg1)
+    val (targetCursorPosition) = evaluateArgumentPosition(index + 2, mode2, arg2)
+    constructor(arg1position, targetCursorPosition)
+}
+
+// We still gonna use positions for arguments if it's immediate mode, just use index to evaluate position
+fun constructTwoArgOperation(
+    mode1: Int,
+    arg1: Int,
+    mode2: Int,
+    arg2: Int,
     targetPos: Int,
     index: Int,
-    constructor: (Int, Int, Int) -> ExecutableOperation
-): Either<Error, ExecutableOperation> = Either.fx {
+    constructor: (Int, Int, Int) -> Operation
+): Either<Error, Operation> = Either.fx {
     val (arg1position) = evaluateArgumentPosition(index + 1, mode1, arg1)
     val (arg2position) = evaluateArgumentPosition(index + 2, mode2, arg2)
     constructor(arg1position, arg2position, targetPos)
 }
-
-fun constructAdd(mode1: Int, arg1: Int, mode2: Int, arg2:Int, targetPos: Int, index: Int) =
-    constructExecutableOperation(mode1, arg1, mode2, arg2, targetPos, index, ::Add)
-
-fun constructMultiply(mode1: Int, arg1: Int, mode2: Int, arg2:Int, targetPos: Int, index: Int) =
-    constructExecutableOperation(mode1, arg1, mode2, arg2, targetPos, index, ::Multiply)
 
 fun evaluateArgumentPosition(index: Int, mode: Int, value: Int): Either<Error, Int> =
     when (mode) {
@@ -107,7 +137,8 @@ fun evaluateArgumentPosition(index: Int, mode: Int, value: Int): Either<Error, I
 
 fun Int.toDigitsWithLeadingZeros(): List<Int> {
     val digits = this.digits()
-    return List(4 - digits.size) { 0 } + digits
+    return if (digits.size < 4) List(4 - digits.size) { 0 } + digits
+    else digits
 }
 
 fun <T> List<T>.nextFourFrom(index: Int): Either<Error, CommandTuple<T>> =
@@ -120,14 +151,19 @@ fun <T> List<T>.nextFourFrom(index: Int): Either<Error, CommandTuple<T>> =
         ).right()
     else Error("Next four is out of range. Index: $index and list $this").left()
 
-sealed class Operation
+sealed class Operation {
+    abstract val size: Int
+}
 
-object Halt : Operation()
+object Halt : Operation() {
+    override val size: Int = 1
+}
 
 sealed class ExecutableOperation(val f: (Int, Int) -> Int) : Operation() {
     abstract val pos1: Int
     abstract val pos2: Int
     abstract val targetPos: Int
+    override val size: Int = 4
 }
 
 data class Add(
@@ -144,11 +180,50 @@ data class Multiply(
 
 data class ReadInput(
     val targetPos: Int
-) : Operation()
+) : Operation() {
+    override val size: Int = 2
+}
 
 data class WriteOutput(
     val targetPos: Int
-) : Operation()
+) : Operation() {
+    override val size: Int = 2
+}
+
+sealed class JumpOperation(val f: (Int) -> Boolean) : Operation() {
+    abstract val pos1: Int
+    abstract val targetPos: Int
+    override val size: Int = 3
+}
+
+data class JumpIfTrue(
+    override val pos1: Int,
+    override val targetPos: Int
+) : JumpOperation({ it != 0 })
+
+data class JumpIfFalse(
+    override val pos1: Int,
+    override val targetPos: Int
+) : JumpOperation({ it == 0 })
+
+sealed class ComparisonOperation(val f: (Int, Int) -> Boolean) : Operation() {
+    abstract val pos1: Int
+    abstract val pos2: Int
+    abstract val targetPos: Int
+    override val size: Int = 4
+}
+
+data class LessThan(
+    override val pos1: Int,
+    override val pos2: Int,
+    override val targetPos: Int
+) : ComparisonOperation({ a, b -> a < b })
+
+data class Equals(
+    override val pos1: Int,
+    override val pos2: Int,
+    override val targetPos: Int
+) : ComparisonOperation({ a, b -> a == b })
 
 data class CommandTuple<T>(val a: T, val b: T?, val c: T?, val d: T?)
 
