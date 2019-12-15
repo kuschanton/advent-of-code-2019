@@ -9,54 +9,94 @@ import advent.of.code.replaceAtIndex
 import arrow.core.*
 import arrow.core.extensions.fx
 import com.marcinmoskala.math.permutations
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.runBlocking
 import java.lang.Integer.max
-import java.util.Scanner
-import java.util.Stack
 
 
 fun main() {
-    part1()
+    part2()
 }
 
-fun part1(): Unit {
+fun part2(): Unit {
     val result = Either.fx<Error, Int> {
-        val input = readInputFrom("07_1.txt")
-            .split(',')
-            .map { eitherCatch { it.toInt() } }
-            .toEitherList()
-            .mapLeft { ex -> Error("Not able to convert to Int: $ex") }
-            .bind()
+                val input = readInputFrom("07_1.txt")
+//        val input = "3,26,1001,26,-4,26,3,27,1002,27,2,27,1,27,26,27,4,27,1001,28,-1,28,1005,28,6,99,0,0,5"
+                .split(',')
+                .map { eitherCatch { it.toInt() } }
+                .toEitherList()
+                .mapLeft { ex -> Error("Not able to convert to Int: $ex") }
+                .bind()
 
-        (0..4).toSet().permutations().fold(0) { acc, next ->
-            max(acc, executePermutation(input, next).bind())
+        (5..9).toSet().permutations().fold(0) { acc, next ->
+            max(acc, executePermutationParallel(input, next).bind())
         }
+//        executePermutationParallel(input, listOf(9, 8, 7, 6, 5)).bind()
     }
+    println(result)
 }
 
-fun executePermutation(input: List<Int>, permutation: List<Int>): Either<Error, Int> =
-    permutation.fold<Int, Either<Error, Int>>(0.right()) { acc, next ->
-        Either.fx {
-            val inputStack = Stack<Int>().apply { push(acc.bind()); push(next) }
-            val (output) = executeOperations(input, inputStack)
-            output.singleOrError().bind()
+fun executePermutationParallel(input: List<Int>, permutation: List<Int>): Either<Error, Int> = runBlocking {
+    val a = Channel<Int>(10)
+    val b = Channel<Int>(10)
+    val c = Channel<Int>(10)
+    val d = Channel<Int>(10)
+    val e = Channel<Int>(10)
+    val (initCode1, initCode2, initCode3, initCode4, initCode5) = permutation
+    a.offer(initCode1)
+    b.offer(initCode2)
+    c.offer(initCode3)
+    d.offer(initCode4)
+    e.offer(initCode5)
+    a.offer(0)
+    val result = listOf(
+        async(Dispatchers.IO) { executeOperations(input, a, b, "a") },
+        async(Dispatchers.IO) { executeOperations(input, b, c, "b") },
+        async(Dispatchers.IO) { executeOperations(input, c, d, "c") },
+        async(Dispatchers.IO) { executeOperations(input, d, e, "d") },
+        async(Dispatchers.IO) { executeOperations(input, e, a, "e") }
+    ).awaitAll()
+        .toEitherList()
+        .map {
+            runBlocking {
+                a.receive()
+            }
         }
-    }
+    a.close()
+    b.close()
+    c.close()
+    d.close()
+    e.close()
+    result
+}
 
 private fun <E> List<E>.singleOrError(): Either<Error, E> =
     if (size == 1) single().right()
     else Error("Unexpected output size $size").left()
 
-fun executeOperations(input: List<Int>, inputStack: Stack<Int>): Either<Error, List<Int>> {
+fun executeOperations(
+    input: List<Int>,
+    receiveChannel: ReceiveChannel<Int>,
+    sendChannel: SendChannel<Int>,
+    id: String
+): Either<Error, List<Int>> {
     val output = mutableListOf<Int>()
 
     fun go(index: Int, input: List<Int>): Either<Error, List<Int>> = Either.fx {
         val (commandTuple) = input.nextFourFrom(index)
         val (command) = commandTuple.toOperation(index)
+        println("$id $command")
         when (command) {
             is Halt -> input.right()
             is ExecutableOperation -> go(index + command.size, command.executeOn(input).bind())
-            is ReadInput -> go(index + command.size, command.executeOn(input, inputStack).bind())
-            is WriteOutput -> go(index + command.size, command.executeOn(input, output).bind())
+            is ReadInput -> go(index + command.size, command.executeOn(input, receiveChannel))
+            is WriteOutput -> go(index + command.size, command.executeOn(input, sendChannel, id).bind())
             is JumpIfTrue -> go(command.evaluateNewIndex(index, input), input)
             is JumpIfFalse -> go(command.evaluateNewIndex(index, input), input)
             is LessThan -> go(index + command.size, command.executeOn(input).bind())
@@ -78,18 +118,16 @@ fun JumpOperation.evaluateNewIndex(currentIndex: Int, input: List<Int>): Int =
     if (f(input[pos1])) input[targetPos]
     else currentIndex + size
 
-fun WriteOutput.executeOn(input: List<Int>, output: MutableList<Int>): Either<Error, List<Int>> =
+fun WriteOutput.executeOn(input: List<Int>, sendChannel: SendChannel<Int>, id: String): Either<Error, List<Int>> =
     if (targetPos < input.size) {
-        output.add(input[targetPos])
+        println("Send $id: ${input[targetPos]}")
+        sendChannel.offer(input[targetPos])
         input.right()
     } else Error("Not able to execute $this on input: out of range").left()
 
-fun ReadInput.executeOn(input: List<Int>, stackInput: Stack<Int>): Either<Error, List<Int>> =
-    if (targetPos < input.size)
-        stackInput.pop().toOption().toEither { Error("Input is empty") }
-            .map { input.replaceAtIndex(targetPos, it) }
-    else
-        Error("Not able to execute $this on input: out of range").left()
+fun ReadInput.executeOn(input: List<Int>, receiveChannel: ReceiveChannel<Int>): List<Int> =
+    runBlocking { receiveChannel.receive() }
+        .let { input.replaceAtIndex(targetPos, it) }
 
 fun ExecutableOperation.executeOn(input: List<Int>): Either<Error, List<Int>> =
     if (max(pos1, pos2, targetPos) < input.size)
