@@ -25,4 +25,5 @@ tasks {
 dependencies {
     implementation("io.arrow-kt:arrow-core:0.10.3")
     implementation("io.arrow-kt:arrow-syntax:0.10.3")
+    compile("com.marcinmoskala:DiscreteMathToolkit:1.0.3")
 }
