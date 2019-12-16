@@ -10,7 +10,6 @@ import arrow.core.*
 import arrow.core.extensions.fx
 import com.marcinmoskala.math.permutations
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
@@ -27,7 +26,6 @@ fun main() {
 fun part2(): Unit {
     val result = Either.fx<Error, Int> {
                 val input = readInputFrom("07_1.txt")
-//        val input = "3,26,1001,26,-4,26,3,27,1002,27,2,27,1,27,26,27,4,27,1001,28,-1,28,1005,28,6,99,0,0,5"
                 .split(',')
                 .map { eitherCatch { it.toInt() } }
                 .toEitherList()
@@ -35,44 +33,48 @@ fun part2(): Unit {
                 .bind()
 
         (5..9).toSet().permutations().fold(0) { acc, next ->
-            max(acc, executePermutationParallel(input, next).bind())
+            max(acc, executePermutationParallelAmp(input, next).bind())
         }
-//        executePermutationParallel(input, listOf(9, 8, 7, 6, 5)).bind()
     }
     println(result)
 }
 
-fun executePermutationParallel(input: List<Int>, permutation: List<Int>): Either<Error, Int> = runBlocking {
-    val a = Channel<Int>(10)
-    val b = Channel<Int>(10)
-    val c = Channel<Int>(10)
-    val d = Channel<Int>(10)
-    val e = Channel<Int>(10)
-    val (initCode1, initCode2, initCode3, initCode4, initCode5) = permutation
-    a.offer(initCode1)
-    b.offer(initCode2)
-    c.offer(initCode3)
-    d.offer(initCode4)
-    e.offer(initCode5)
-    a.offer(0)
+data class Amp(val program: List<Int>,
+               val initCode: Int,
+               val receiveChannel: Channel<Int>,
+               val sendChannel: SendChannel<Int>,
+               val inputValue: Int? = null) {
+    init {
+        receiveChannel.offer(initCode)
+        inputValue?.let { receiveChannel.offer(it) }
+    }
+}
+
+fun executePermutationParallelAmp(program: List<Int>, permutation: List<Int>): Either<Error, Int> = runBlocking {
+    val (initCodeA, initCodeB, initCodeC, initCodeD, initCodeE) = permutation
+    val channels = List(5) { Channel<Int>(10) }
+    val (a2b, b2c, c2d, d2e, e2a) = channels
+
+    val ampA = Amp(program, initCodeA, e2a, a2b, 0)
+    val ampB = Amp(program, initCodeB, a2b, b2c)
+    val ampC = Amp(program, initCodeC, b2c, c2d)
+    val ampD = Amp(program, initCodeD, c2d, d2e)
+    val ampE = Amp(program, initCodeE, d2e, e2a)
+
     val result = listOf(
-        async(Dispatchers.IO) { executeOperations(input, a, b, "a") },
-        async(Dispatchers.IO) { executeOperations(input, b, c, "b") },
-        async(Dispatchers.IO) { executeOperations(input, c, d, "c") },
-        async(Dispatchers.IO) { executeOperations(input, d, e, "d") },
-        async(Dispatchers.IO) { executeOperations(input, e, a, "e") }
+        async(Dispatchers.IO) { ampA.executeOperations() },
+        async(Dispatchers.IO) { ampB.executeOperations() },
+        async(Dispatchers.IO) { ampC.executeOperations() },
+        async(Dispatchers.IO) { ampD.executeOperations() },
+        async(Dispatchers.IO) { ampE.executeOperations() }
     ).awaitAll()
         .toEitherList()
         .map {
             runBlocking {
-                a.receive()
+                e2a.receive()
             }
         }
-    a.close()
-    b.close()
-    c.close()
-    d.close()
-    e.close()
+    channels.forEach { it.close() }
     result
 }
 
@@ -80,23 +82,15 @@ private fun <E> List<E>.singleOrError(): Either<Error, E> =
     if (size == 1) single().right()
     else Error("Unexpected output size $size").left()
 
-fun executeOperations(
-    input: List<Int>,
-    receiveChannel: ReceiveChannel<Int>,
-    sendChannel: SendChannel<Int>,
-    id: String
-): Either<Error, List<Int>> {
-    val output = mutableListOf<Int>()
-
+fun Amp.executeOperations(): Either<Error, List<Int>> {
     fun go(index: Int, input: List<Int>): Either<Error, List<Int>> = Either.fx {
         val (commandTuple) = input.nextFourFrom(index)
         val (command) = commandTuple.toOperation(index)
-        println("$id $command")
         when (command) {
             is Halt -> input.right()
             is ExecutableOperation -> go(index + command.size, command.executeOn(input).bind())
             is ReadInput -> go(index + command.size, command.executeOn(input, receiveChannel))
-            is WriteOutput -> go(index + command.size, command.executeOn(input, sendChannel, id).bind())
+            is WriteOutput -> go(index + command.size, command.executeOn(input, sendChannel).bind())
             is JumpIfTrue -> go(command.evaluateNewIndex(index, input), input)
             is JumpIfFalse -> go(command.evaluateNewIndex(index, input), input)
             is LessThan -> go(index + command.size, command.executeOn(input).bind())
@@ -104,7 +98,7 @@ fun executeOperations(
         }.bind()
     }
 
-    return go(0, input).map { output }
+    return go(0, program)
 }
 
 fun ComparisonOperation.executeOn(input: List<Int>): Either<Error, List<Int>> =
@@ -118,9 +112,8 @@ fun JumpOperation.evaluateNewIndex(currentIndex: Int, input: List<Int>): Int =
     if (f(input[pos1])) input[targetPos]
     else currentIndex + size
 
-fun WriteOutput.executeOn(input: List<Int>, sendChannel: SendChannel<Int>, id: String): Either<Error, List<Int>> =
+fun WriteOutput.executeOn(input: List<Int>, sendChannel: SendChannel<Int>): Either<Error, List<Int>> =
     if (targetPos < input.size) {
-        println("Send $id: ${input[targetPos]}")
         sendChannel.offer(input[targetPos])
         input.right()
     } else Error("Not able to execute $this on input: out of range").left()
