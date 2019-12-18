@@ -17,7 +17,16 @@ fun <T> List<T>.replaceAtIndex(index: Int, newValue: T) = this.mapIndexed { i, v
 fun <T> List<T>.replaceLast(newValue: T) = replaceAtIndex(size - 1, newValue)
 
 fun Int.digits(): List<Int> {
-    fun go(value: Int, digits: List<Int>): List<Int> =
+    tailrec fun go(value: Int, digits: List<Int>): List<Int> =
+        when {
+            value > 0 -> go(value / 10, listOf(value % 10) + digits)
+            else -> digits
+        }
+    return go(this, emptyList())
+}
+
+fun Long.digits(): List<Long> {
+    tailrec fun go(value: Long, digits: List<Long>): List<Long> =
         when {
             value > 0 -> go(value / 10, listOf(value % 10) + digits)
             else -> digits
