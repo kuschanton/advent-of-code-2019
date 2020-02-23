@@ -7,6 +7,7 @@ version = "1.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
+    jcenter()
 }
 
 dependencies {
@@ -27,4 +28,7 @@ dependencies {
     implementation("io.arrow-kt:arrow-core:0.10.3")
     implementation("io.arrow-kt:arrow-syntax:0.10.3")
     compile("com.marcinmoskala:DiscreteMathToolkit:1.0.3")
+    testImplementation("org.junit.jupiter:junit-jupiter-engine:5.6.0")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:5.6.0")
+    testImplementation("io.strikt:strikt-core:0.23.7")
 }

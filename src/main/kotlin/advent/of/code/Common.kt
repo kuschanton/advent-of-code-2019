@@ -8,11 +8,13 @@ data class Error(val message: String)
 
 fun <T> eitherCatch(block: () -> T) = runCatching { block().right() }.getOrElse { it.left() }
 
-fun delimiter() = println("_".repeat(20))
-
 fun <T> List<T>.replaceAtIndex(index: Int, newValue: T) = this.mapIndexed { i, v ->
     if (index == i) newValue else v
 }
+
+fun <T> List<List<T>>.replaceAtIndex2(indexX: Int, indexY: Int, newValue: T) = this.replaceAtIndex(
+    indexY, this[indexY].replaceAtIndex(indexX, newValue)
+)
 
 fun <T> List<T>.replaceLast(newValue: T) = replaceAtIndex(size - 1, newValue)
 
