@@ -59,7 +59,7 @@ internal class Day02Test {
                 )
             )
 
-        private fun taskInput() = readTextFrom("01_2.txt")
+        private fun taskInput() = readTextFrom("02_1`.txt")
             .split(',')
             .map(String::toInt)
     }

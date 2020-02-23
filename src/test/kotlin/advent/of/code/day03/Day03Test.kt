@@ -67,7 +67,7 @@ internal class Day03Test {
                 )
             )
 
-        private fun taskInput() = readLinesFrom("01_3.txt")
+        private fun taskInput() = readLinesFrom("03_1.txt")
             .let { it[0] to it[1] }
 
     }
