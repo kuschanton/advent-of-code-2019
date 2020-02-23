@@ -1,6 +1,6 @@
 package advent.of.code.day12
 
-import advent.of.code.readInputFrom
+import advent.of.code.readInputFromCode
 import java.time.LocalDateTime
 import kotlin.math.abs
 
@@ -26,7 +26,7 @@ val testInput3 = """
 """.trimIndent()
 
 fun main() {
-    val moonsPositions = readInputFrom("12_1.txt").parseInput()
+    val moonsPositions = readInputFromCode("12_1.txt").parseInput()
 
     val initialState: List<Moon> = moonsPositions.map { it to Triple(0, 0, 0) }
 

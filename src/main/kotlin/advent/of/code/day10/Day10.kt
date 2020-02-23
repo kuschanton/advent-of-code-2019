@@ -1,6 +1,6 @@
 package advent.of.code.day10
 
-import advent.of.code.readInputFrom
+import advent.of.code.readInputFromCode
 import arrow.core.Tuple4
 import arrow.core.Tuple6
 import arrow.core.Tuple7
@@ -15,7 +15,7 @@ fun main() {
 
 
     val startingPoint = Pair(17, 22)
-    val asteroids = readInputFrom("10_1.txt")
+    val asteroids = readInputFromCode("10_1.txt")
         .toAsteroids() - (startingPoint)
     println(asteroids.orderByVaporization(startingPoint)[199])
 
@@ -57,7 +57,7 @@ private fun Pair<Int, Int>.foldByAxis(): Pair<Int, Int> =
     }
 
 fun part1() {
-    val asteroids = readInputFrom("10_1.txt")
+    val asteroids = readInputFromCode("10_1.txt")
         .toAsteroids()
 
     val result = asteroids.fold(Triple(0, 0, 0)) { acc, pair ->

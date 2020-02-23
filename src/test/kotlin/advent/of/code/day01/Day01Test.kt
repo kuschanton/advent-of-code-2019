@@ -1,9 +1,9 @@
 package advent.of.code.day01
 
+import advent.of.code.TestUtils.Companion.readLinesFrom
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
-import readInputFrom
 import strikt.api.expectThat
 import strikt.assertions.isEqualTo
 
@@ -42,7 +42,7 @@ internal class Day01Test {
                 Arguments.of(taskInput(), 4973616)
             )
 
-        private fun taskInput() = readInputFrom("01_1.txt")
+        private fun taskInput() = readLinesFrom("01_1.txt")
             .map(String::toInt)
     }
 }

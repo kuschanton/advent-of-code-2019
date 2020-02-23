@@ -1,10 +1,10 @@
 package advent.of.code.day11
 
 import advent.of.code.Error
-import advent.of.code.day03.toEitherList
+import advent.of.code.toEitherList
 import advent.of.code.digits
 import advent.of.code.eitherCatch
-import advent.of.code.readInputFrom
+import advent.of.code.readInputFromCode
 import advent.of.code.replaceAtIndex
 import advent.of.code.replaceAtIndex2
 import arrow.core.Either
@@ -25,7 +25,7 @@ import java.lang.Integer.max
 
 fun main() {
     val result = Either.fx<Error, List<Long>> {
-        val program = readInputFrom("11_1.txt")
+        val program = readInputFromCode("11_1.txt")
             .split(',')
             .map { eitherCatch { it.toLong() } }
             .toEitherList()

@@ -1,13 +1,13 @@
 package advent.of.code.day08
 
-import advent.of.code.readInputFrom
+import advent.of.code.readInputFromCode
 
 const val width = 25
 const val height = 6
 
 
 fun main() {
-    val image = readInputFrom("08_1.txt")
+    val image = readInputFromCode("08_1.txt")
         .map { it.toString().toInt() }
         .asSequence()
         .chunked(width * height)
@@ -35,7 +35,7 @@ fun drawImage(image: List<Int>, width: Int) = image
     .forEach { println(it.joinToString("")) }
 
 fun part1() {
-    val result = readInputFrom("08_1.txt")
+    val result = readInputFromCode("08_1.txt")
         .chunked(width * height)
         .minBy { layer -> layer.count { it == '0' } }
         ?.fold(Pair(0, 0)) { acc, next ->

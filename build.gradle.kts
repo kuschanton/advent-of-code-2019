@@ -31,4 +31,5 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-engine:5.6.0")
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.6.0")
     testImplementation("io.strikt:strikt-core:0.23.7")
+    testImplementation("io.strikt:strikt-arrow:0.23.7")
 }

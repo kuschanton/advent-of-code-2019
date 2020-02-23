@@ -1,7 +1,7 @@
 package advent.of.code.day06
 
-import advent.of.code.day03.toEitherList
-import advent.of.code.readInputFrom
+import advent.of.code.toEitherList
+import advent.of.code.readInputFromCode
 import arrow.core.Either
 import arrow.core.extensions.fx
 import arrow.core.left
@@ -35,7 +35,7 @@ I)YOU
 
 fun main() {
     val result = Either.fx<Error, Int> {
-        val (directOrbits) = parseInputPairs(readInputFrom("06_1.txt"))
+        val (directOrbits) = parseInputPairs(readInputFromCode("06_1.txt"))
         val pathToYou = findPathTo("YOU", directOrbits)
         val pathToSanta = findPathTo("SAN", directOrbits)
         val (lastCommon) = pathToYou.zip(pathToSanta)
@@ -63,7 +63,7 @@ fun findPathTo(targetName: String, list: List<Pair<String, String>>): List<Strin
 
 fun part1() {
     val result = Either.fx<Error, Int> {
-        val (directOrbits) = parseInput(readInputFrom("06_1.txt"))
+        val (directOrbits) = parseInput(readInputFromCode("06_1.txt"))
         val tree = buildObject(directOrbits)
         tree.countInterconnections(1)
     }

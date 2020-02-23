@@ -1,10 +1,10 @@
 package advent.of.code.day07
 
 import advent.of.code.Error
-import advent.of.code.day03.toEitherList
+import advent.of.code.toEitherList
 import advent.of.code.digits
 import advent.of.code.eitherCatch
-import advent.of.code.readInputFrom
+import advent.of.code.readInputFromCode
 import advent.of.code.replaceAtIndex
 import arrow.core.*
 import arrow.core.extensions.fx
@@ -25,7 +25,7 @@ fun main() {
 
 fun part2(): Unit {
     val result = Either.fx<Error, Int> {
-                val input = readInputFrom("07_1.txt")
+                val input = readInputFromCode("07_1.txt")
                 .split(',')
                 .map { eitherCatch { it.toInt() } }
                 .toEitherList()
