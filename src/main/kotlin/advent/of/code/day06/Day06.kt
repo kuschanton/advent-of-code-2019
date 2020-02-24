@@ -1,88 +1,58 @@
 package advent.of.code.day06
 
 import advent.of.code.toEitherList
-import advent.of.code.readInputFromCode
 import arrow.core.Either
 import arrow.core.extensions.fx
 import arrow.core.left
 import arrow.core.right
 import arrow.core.toOption
 
-val testInput = """
-COM)B
-B)C
-C)D
-D)E
-E)F
-B)G
-G)H
-D)I
-E)J
-J)K
-K)L
-""".trimIndent()
+private const val COM = "COM"
 
-val testInput2 = """
-COM)B
-B)G
-G)H
-B)C
-C)D
-D)I
-H)SAN
-I)YOU
-""".trimIndent()
-
-fun main() {
-    val result = Either.fx<Error, Int> {
-        val (directOrbits) = parseInputPairs(readInputFromCode("06_1.txt"))
+fun findPath(input: String) = Either.fx<Error, Int> {
+        val (directOrbits) = parseInputPairs(input)
         val pathToYou = findPathTo("YOU", directOrbits)
         val pathToSanta = findPathTo("SAN", directOrbits)
         val (lastCommon) = pathToYou.zip(pathToSanta)
             .last { it.first == it.second }
             .first
             .toOption().toEither { Error("No common elements") }
-        val youPathToLastCommon = pathToYou.size - pathToYou.indexOf(lastCommon) - 1
+        val yourPathToLastCommon = pathToYou.size - pathToYou.indexOf(lastCommon) - 1
         val santaPathToLastCommon = pathToSanta.size - pathToYou.indexOf(lastCommon) - 1
-        youPathToLastCommon + santaPathToLastCommon
+        yourPathToLastCommon + santaPathToLastCommon
     }
-    println(result)
-}
 
-fun findPathTo(targetName: String, list: List<Pair<String, String>>): List<String> {
+private fun findPathTo(targetName: String, list: List<Pair<String, String>>): List<String> {
     tailrec fun go(name: String, path: List<String>, list: List<Pair<String, String>>): List<String> {
         val next = list.singleOrNull { it.second == name }
         return when {
             next == null -> emptyList()
-            next.first == "COM" -> (listOf("COM") + path)
+            next.first == COM -> (listOf(COM) + path)
             else -> go(next.first, listOf(next.first) + path, list)
         }
     }
     return go(targetName, emptyList(), list)
 }
 
-fun part1() {
-    val result = Either.fx<Error, Int> {
-        val (directOrbits) = parseInput(readInputFromCode("06_1.txt"))
-        val tree = buildObject(directOrbits)
-        tree.countInterconnections(1)
-    }
-    println(result)
+fun countOrbits(input: String) = Either.fx<Error, Int> {
+    val (directOrbits) = parseInput(input)
+    val tree = buildObject(directOrbits)
+    tree.countInterconnections(1)
 }
 
-fun SpaceTree.countInterconnections(depth: Int): Int =
+private fun SpaceTree.countInterconnections(depth: Int): Int =
     when {
         left != null && right != null -> left.countInterconnections(depth + 1) + right.countInterconnections(depth + 1) - depth * (depth - 1) / 2
         left != null || right != null -> (left ?: right)!!.countInterconnections(depth + 1)
         else -> depth * (depth - 1) / 2
     }
 
-fun parseInputPairs(input: String): Either<Error, List<Pair<String, String>>> =
+private fun parseInputPairs(input: String): Either<Error, List<Pair<String, String>>> =
     input.lines()
         .map { it.toPair() }
         .toEitherList()
 
-fun parseInput(input: String): Either<Error, Map<String, Set<String>>> =
+private fun parseInput(input: String): Either<Error, Map<String, Set<String>>> =
     parseInputPairs(input)
         .map {
             it.fold(mutableMapOf<String, Set<String>>()) { acc, next ->
@@ -94,7 +64,7 @@ fun parseInput(input: String): Either<Error, Map<String, Set<String>>> =
             }
         }
 
-fun buildObject(inputMap: Map<String, Set<String>>): SpaceTree {
+private fun buildObject(inputMap: Map<String, Set<String>>): SpaceTree {
     fun go(name: String, map: Map<String, Set<String>>): SpaceTree {
         val childrenNames = map[name]
         return when {
@@ -106,10 +76,10 @@ fun buildObject(inputMap: Map<String, Set<String>>): SpaceTree {
             }
         }
     }
-    return go("COM", inputMap)
+    return go(COM, inputMap)
 }
 
-fun String.toPair(): Either<Error, Pair<String, String>> {
+private fun String.toPair(): Either<Error, Pair<String, String>> {
     val split = this.split(')')
     return when (split.size) {
         2 -> Pair(split.component1(), split.component2()).right()
@@ -117,5 +87,5 @@ fun String.toPair(): Either<Error, Pair<String, String>> {
     }
 }
 
-data class SpaceTree(val name: String, val left: SpaceTree? = null, val right: SpaceTree? = null)
+private data class SpaceTree(val name: String, val left: SpaceTree? = null, val right: SpaceTree? = null)
 
