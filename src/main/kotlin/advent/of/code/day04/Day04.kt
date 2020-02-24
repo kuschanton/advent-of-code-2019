@@ -44,7 +44,7 @@ private val rules = listOf(
     sameAreNotInLargerGroup
 )
 
-val monoid = object : Monoid<(List<Int>) -> Boolean> {
+private val monoid = object : Monoid<(List<Int>) -> Boolean> {
     override fun empty(): (List<Int>) -> Boolean = { true }
 
     override fun ((List<Int>) -> Boolean).combine(b: (List<Int>) -> Boolean): (List<Int>) -> Boolean = {
