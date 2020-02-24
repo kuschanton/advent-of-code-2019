@@ -29,6 +29,9 @@ internal class Day05Test {
         diagnosticCode?.also {
             expectThat(runBlocking { sendChannel.receive() }).isEqualTo(it)
         }
+
+        receiveChannel.close()
+        sendChannel.close()
     }
 
     companion object {
