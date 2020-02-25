@@ -1,6 +1,5 @@
 package advent.of.code.day10
 
-import advent.of.code.readInputFromCode
 import arrow.core.Tuple4
 import arrow.core.Tuple6
 import arrow.core.Tuple7
@@ -11,17 +10,14 @@ import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.sqrt
 
-fun main() {
-
-
-    val startingPoint = Pair(17, 22)
-    val asteroids = readInputFromCode("10_1.txt")
-        .toAsteroids() - (startingPoint)
-    println(asteroids.orderByVaporization(startingPoint)[199])
-
+fun findNVaporized(input: String, index: Int, startingPoint: Pair<Int, Int>): Pair<Int, Int> {
+    val asteroids = input.toAsteroids() - (startingPoint)
+    val result = asteroids.orderByVaporization(startingPoint)[index - 1]
+    return Pair(result.a, result.b)
 }
 
 fun List<Pair<Int, Int>>.orderByVaporization(centre: Pair<Int, Int>): List<Tuple7<Int, Int, Int, Int, Double, Double, Int>> {
+    // Can be rewritten using State monad!
     val withCircle = this
         .map {
             val relativePosition = it.toRelativePositionFrom(centre)
@@ -39,8 +35,10 @@ fun List<Pair<Int, Int>>.orderByVaporization(centre: Pair<Int, Int>): List<Tuple
             }
         }
         .flatten()
+
     val circles = withCircle.map { it.g }.max() ?: 0
-    return (0..circles).fold<Int, List<Tuple7<Int, Int, Int, Int, Double, Double, Int>>>(emptyList()) { acc, next ->
+
+    return (0..circles).fold(emptyList()) { acc, next ->
         acc + withCircle.filter { it.g == next }
             .sortedBy { it.f }
     }
@@ -49,24 +47,13 @@ fun List<Pair<Int, Int>>.orderByVaporization(centre: Pair<Int, Int>): List<Tuple
 private fun Pair<Int, Int>.toAngle(): Double =
     Math.toDegrees(atan2(-first.toDouble(), second.toDouble())) + 180
 
-private fun Pair<Int, Int>.foldByAxis(): Pair<Int, Int> =
-    when {
-        first == 0 -> Pair(0, second.toOne())
-        second == 0 -> Pair(first.toOne(), 0)
-        else -> this
-    }
-
-fun part1() {
-    val asteroids = readInputFromCode("10_1.txt")
-        .toAsteroids()
-
-    val result = asteroids.fold(Triple(0, 0, 0)) { acc, pair ->
+fun findBestPlace(input: String): Triple<Int, Int, Int> {
+    val asteroids = input.toAsteroids()
+    return asteroids.fold(Triple(0, 0, 0)) { acc, pair ->
         val visible = pair.countVisible(asteroids)
         if (visible > acc.first) Triple(visible, pair.first, pair.second)
         else acc
     }
-
-    println(result)
 }
 
 private fun Pair<Int, Int>.countVisible(asteroids: List<Pair<Int, Int>>): Int =
