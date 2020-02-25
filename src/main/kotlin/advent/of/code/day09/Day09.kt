@@ -1,58 +1,18 @@
 package advent.of.code.day09
 
 import advent.of.code.Error
-import advent.of.code.toEitherList
 import advent.of.code.digits
-import advent.of.code.eitherCatch
-import advent.of.code.readInputFromCode
 import advent.of.code.replaceAtIndex
 import arrow.core.Either
 import arrow.core.extensions.fx
 import arrow.core.flatMap
 import arrow.core.left
 import arrow.core.right
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.selects.select
 import java.lang.Integer.max
-
-
-fun main() {
-    val result = Either.fx<Error, List<Long>> {
-        val program = readInputFromCode("09_1.txt")
-            .split(',')
-            .map { eitherCatch { it.toLong() } }
-            .toEitherList()
-            .mapLeft { ex -> Error("Not able to convert to Long: $ex") }
-            .bind()
-
-        val additionalMemory = List(program.size * 10) { 0L }
-
-        val channels = List(2) { Channel<Long>(10) }
-        val (input, output) = channels
-
-        val ampA = Amp(program + additionalMemory, 2, input, output, null)
-
-        GlobalScope.launch {
-            select<Unit> {
-                output.onReceive {
-                    println(it)
-                }
-            }
-        }
-
-        val result = ampA.executeOperationsTailRec().bind()
-
-        channels.forEach { it.close() }
-
-        result
-    }
-    println(result.isRight())
-}
 
 data class Amp(
     val program: List<Long>,
