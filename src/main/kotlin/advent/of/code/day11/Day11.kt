@@ -102,7 +102,7 @@ fun CoroutineScope.worker(
     }
 }
 
-sealed class Direction() {
+sealed class Direction {
     fun rotate(direction: Int): Direction = when (direction) {
         0 -> left()
         else -> right()
